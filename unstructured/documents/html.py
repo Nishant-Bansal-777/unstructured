@@ -37,7 +37,7 @@ from unstructured.partition.text_type import (
 )
 from unstructured.utils import htmlify_matrix_of_cell_texts
 
-TEXT_TAGS: Final[List[str]] = ["p", "a", "td", "span", "font"]
+TEXT_TAGS: Final[List[str]] = ["p", "a", "td", "span", "font", "iframe", "img", "meta"]
 LIST_ITEM_TAGS: Final[List[str]] = ["li", "dd"]
 LIST_TAGS: Final[List[str]] = ["ul", "ol", "dl"]
 HEADING_TAGS: Final[List[str]] = ["h1", "h2", "h3", "h4", "h5", "h6"]
@@ -293,7 +293,8 @@ class HTMLDocument(XMLDocument):
 def _get_links_from_tag(tag_elem: etree._Element) -> List[Link]:
     """Hyperlinks within and below `tag_elem`."""
     links: List[Link] = []
-    href = tag_elem.get("href")
+    href = tag_elem.get("href") or tag_elem.get("src") or tag_elem.get("content")
+    # print('>>>>>>>>>>>>>>>', tag_elem, href)
     # TODO(klaijan) - add html href start_index
     if href:
         links.append({"text": tag_elem.text, "url": href, "start_index": -1})
