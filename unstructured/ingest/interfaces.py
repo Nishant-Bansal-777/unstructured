@@ -15,7 +15,6 @@ from dataclasses_json.core import Json, _decode_dataclass
 
 from unstructured.chunking.title import chunk_by_title
 from unstructured.documents.elements import DataSourceMetadata
-from unstructured.embed import EMBEDDING_PROVIDER_TO_CLASS_MAP
 from unstructured.embed.interfaces import BaseEmbeddingEncoder, Element
 from unstructured.ingest.enhanced_dataclass import EnhancedDataClassJsonMixin, enhanced_field
 from unstructured.ingest.enhanced_dataclass.core import _asdict
@@ -48,6 +47,12 @@ class BaseSessionHandle(ABC):
 
 @dataclass
 class BaseConfig(EnhancedDataClassJsonMixin, ABC):
+    pass
+
+
+@dataclass
+class AccessConfig(BaseConfig):
+    # Meant to designate holding any sensitive information associated with other configs
     pass
 
 
@@ -110,12 +115,6 @@ class FileStorageConfig(BaseConfig):
     uncompress: bool = False
     recursive: bool = False
     file_glob: t.Optional[t.List[str]] = None
-
-
-@dataclass
-class AccessConfig(BaseConfig):
-    # Meant to designate holding any sensitive information associated with other configs
-    pass
 
 
 @dataclass
@@ -194,9 +193,20 @@ class EmbeddingConfig(BaseConfig):
             kwargs["api_key"] = self.api_key
         if self.model_name:
             kwargs["model_name"] = self.model_name
+        # TODO make this more dynamic to map to encoder configs
+        if self.provider == "langchain-openai":
+            from unstructured.embed.openai import OpenAiEmbeddingConfig, OpenAIEmbeddingEncoder
 
-        cls = EMBEDDING_PROVIDER_TO_CLASS_MAP[self.provider]
-        return cls(**kwargs)
+            return OpenAIEmbeddingEncoder(config=OpenAiEmbeddingConfig(**kwargs))
+        elif self.provider == "langchain-huggingface":
+            from unstructured.embed.huggingface import (
+                HuggingFaceEmbeddingConfig,
+                HuggingFaceEmbeddingEncoder,
+            )
+
+            return HuggingFaceEmbeddingEncoder(config=HuggingFaceEmbeddingConfig(**kwargs))
+        else:
+            raise ValueError(f"{self.provider} not a recognized encoder")
 
 
 @dataclass
@@ -222,9 +232,11 @@ class ChunkingConfig(BaseConfig):
 
 @dataclass
 class PermissionsConfig(BaseConfig):
-    application_id: t.Optional[str]
-    tenant: t.Optional[str]
-    client_cred: t.Optional[str] = enhanced_field(sensitive=True)
+    application_id: t.Optional[str] = enhanced_field(overload_name="permissions_application_id")
+    tenant: t.Optional[str] = enhanced_field(overload_name="permissions_tenant")
+    client_cred: t.Optional[str] = enhanced_field(
+        default=None, sensitive=True, overload_name="permissions_client_cred"
+    )
 
 
 # module-level variable to store session handle
@@ -236,7 +248,8 @@ class WriteConfig(BaseConfig):
     pass
 
 
-class BaseConnectorConfig(EnhancedDataClassJsonMixin, ABC):
+@dataclass
+class BaseConnectorConfig(BaseConfig, ABC):
     """Abstract definition on which to define connector-specific attributes."""
 
 
@@ -694,7 +707,7 @@ class PermissionsCleanupMixin:
         """Recursively clean up downloaded files and directories."""
         if cur_dir is None:
             cur_dir = Path(self.processor_config.output_dir, "permissions_data")
-        if cur_dir is None:
+        if not Path(cur_dir).exists():
             return
         if Path(cur_dir).is_file():
             cur_file = cur_dir

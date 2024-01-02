@@ -1,20 +1,72 @@
-## 0.11.4-dev6
+## 0.11.7-dev3
 
 ### Enhancements
 
-* **Refactor image extraction code.** The image extraction code is moved from `unstructured-inference` to `unstructured`. 
-* **Refactor pdfminer code.** The pdfminer code is moved from `unstructured-inference` to `unstructured`.
-* **Improve handling of auth data for fsspec connectors.** Leverage an extension of the dataclass paradigm to support a `sensitive` annotation for fields related to auth (i.e. passwords, tokens). Refactor all fsspec connectors to use explicit access configs rather than a generic dictionary.
-* **Add glob support for fsspec connectors** Similar to the glob support in the ingest local source connector, similar filters are now enabled on all fsspec based source connectors to limit files being partitioned.
+* **Add intra-chunk overlap capability.** Implement overlap for split-chunks where text-splitting is used to divide an oversized chunk into two or more chunks that fit in the chunking window. Note this capability is not yet available from the API but will shortly be made accessible using a new `overlap` kwarg on partition functions.
+* **Update encoders to leverage dataclasses** All encoders now follow a class approach which get annotated with the dataclass decorator. Similar to the connectors, it uses a nested dataclass for the configs required to configure a client as well as a field/property approach to cache the client. This makes sure any variable associated with the class exists as a dataclass field.
+
+### Features
+ 
+* **Store base64 encoded image data in metadata fields.** Rather than saving to file, stores base64 encoded data of the image bytes and the mimetype for the image in metadata fields: `image_base64` and `image_mime_type` (if that is what the user specifies by some other param like `pdf_extract_to_payload`). This would allow the API to have parity with the library.
+
+### Fixes
+
+* **Fix element extraction not working when using "auto" strategy for pdf and image** If element extraction is specified, the "auto" strategy falls back to the "hi_res" strategy.
+
+## 0.11.6
+
+### Enhancements
+
+* **Update the layout analysis script.** The previous script only supported annotating `final` elements. The updated script also supports annotating `inferred` and `extracted` elements.
+* **AWS Marketplace API documentation**: Added the user guide, including setting up VPC and CloudFormation, to deploy Unstructured API on AWS platform.
+* **Azure Marketplace API documentation**: Improved the user guide to deploy Azure Marketplace API by adding references to Azure documentation.
+* **Integration documentation**: Updated URLs for the `staging_for` bricks
 
 ### Features
 
+* **Partition emails with base64-encoded text.** Automatically handles and decodes base64 encoded text in emails with content type `text/plain` and `text/html`.
+* **Add Chroma destination connector** Chroma database connector added to ingest CLI.  Users may now use `unstructured-ingest` to write partitioned/embedded data to a Chroma vector database.
+* **Add Elasticsearch destination connector.** Problem: After ingesting data from a source, users might want to move their data into a destination. Elasticsearch is a popular storage solution for various functionality such as search, or providing intermediary caches within data pipelines. Feature: Added Elasticsearch destination connector to be able to ingest documents from any supported source, embed them and write the embeddings / documents into Elasticsearch.
+
+### Fixes
+
+* **Enable --fields argument omission for elasticsearch connector** Solves two bugs where removing the optional parameter --fields broke the connector due to an integer processing error and using an elasticsearch config for a destination connector resulted in a serialization issue when optional parameter --fields was not provided.
+* **Add hi_res_model_name** Adds kwarg to relevant functions and add comments that model_name is to be deprecated.
+
+## 0.11.5
+
+### Enhancements
+
+### Features
+
+### Fixes
+
+* **Fix `partition_pdf()` and `partition_image()` importation issue.** Reorganize `pdf.py` and `image.py` modules to be consistent with other types of document import code.
+
+## 0.11.4
+
+### Enhancements
+
+* **Refactor image extraction code.** The image extraction code is moved from `unstructured-inference` to `unstructured`.
+* **Refactor pdfminer code.** The pdfminer code is moved from `unstructured-inference` to `unstructured`.
+* **Improve handling of auth data for fsspec connectors.** Leverage an extension of the dataclass paradigm to support a `sensitive` annotation for fields related to auth (i.e. passwords, tokens). Refactor all fsspec connectors to use explicit access configs rather than a generic dictionary.
+* **Add glob support for fsspec connectors** Similar to the glob support in the ingest local source connector, similar filters are now enabled on all fsspec based source connectors to limit files being partitioned.
+* Define a constant for the splitter "+" used in tesseract ocr languages.
+
+### Features
+
+* **Save tables in PDF's separately as images.** The "table" elements are saved as `table-<pageN>-<tableN>.jpg`. This filename is presented in the `image_path` metadata field for the Table element. The default would be to not do this.
 * **Add Weaviate destination connector** Weaviate connector added to ingest CLI.  Users may now use `unstructured-ingest` to write partitioned data from over 20 data sources (so far) to a Weaviate object collection.
 * **Sftp Source Connector.** New source connector added to support downloading/partitioning files from Sftp.
 
 ### Fixes
 
-## 0.11.3
+* **Fix pdf `hi_res` partitioning failure when pdfminer fails.** Implemented logic to fall back to the "inferred_layout + OCR" if pdfminer fails in the `hi_res` strategy.
+* **Fix a bug where image can be scaled too large for tesseract** Adds a limit to prevent auto-scaling an image beyond the maximum size `tesseract` can handle for ocr layout detection
+* **Update partition_csv to handle different delimiters** CSV files containing both non-comma delimiters and commas in the data were throwing an error in Pandas. `partition_csv` now identifies the correct delimiter before the file is processed.
+* **partition returning cid code in `hi_res`** occasionally pdfminer can fail to decode the text in an pdf file and return cid code as text. Now when this happens the text from OCR is used.
+
+## 0.11.2
 
 ### Enhancements
 

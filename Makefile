@@ -221,7 +221,11 @@ install-ingest-sftp:
 
 .PHONY: install-ingest-pinecone
 install-ingest-pinecone:
-	python3 -m pip install -r requirements/ingest-pinecone.txt
+	python3 -m pip install -r requirements/ingest/pinecone.txt
+
+.PHONY: install-ingest-chroma
+install-ingest-chroma:
+	python3 -m pip install -r requirements/ingest/chroma.txt
 
 .PHONY: install-embed-huggingface
 install-embed-huggingface:
@@ -345,6 +349,10 @@ test-extra-xlsx:
 .PHONY: check
 check: check-ruff check-black check-flake8 check-version check-flake8-print
 
+.PHONY: check-shfmt
+check-shfmt:
+	shfmt -i 2 -d .
+
 .PHONY: check-black
 check-black:
 	black . --check
@@ -382,7 +390,14 @@ check-version:
 
 ## tidy:                    run black
 .PHONY: tidy
-tidy:
+tidy: tidy-python
+
+.PHONY: tidy_shell
+tidy-shell:
+	shfmt -i 2 -l -w .
+
+.PHONY: tidy-python
+tidy-python:
 	ruff . --select C4,COM,E,F,I,PLR0402,PT,SIM,UP015,UP018,UP032,UP034 --fix-only --ignore COM812,PT011,PT012,SIM117 || true
 	autoflake --in-place .
 	black  .

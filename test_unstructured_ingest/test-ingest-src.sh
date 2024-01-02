@@ -2,7 +2,7 @@
 
 set -u -o pipefail
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 SKIPPED_FILES_LOG=$SCRIPT_DIR/skipped-files.txt
 # If the file already exists, reset it
 if [ -f "$SKIPPED_FILES_LOG" ]; then
@@ -90,7 +90,7 @@ for test in "${all_tests[@]}"; do
   CURRENT_TEST="$test"
   # IF: python_version is not 3.10 (wildcarded to match any subminor version) AND the current test is not in full_python_matrix_tests
   # Note: to test we expand the full_python_matrix_tests array to a string and then regex match the current test
-  if [[ "$python_version" != "Python 3.10"* ]] && [[ ! "${full_python_matrix_tests[*]}" =~ $test ]] ; then
+  if [[ "$python_version" != "Python 3.10"* ]] && [[ ! "${full_python_matrix_tests[*]}" =~ $test ]]; then
     echo "--------- SKIPPING SCRIPT $test ---------"
     continue
   fi

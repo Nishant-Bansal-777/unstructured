@@ -1,4 +1,3 @@
-import itertools
 import json
 import multiprocessing as mp
 import typing as t
@@ -8,6 +7,7 @@ from dataclasses import dataclass
 from unstructured.ingest.enhanced_dataclass import enhanced_field
 from unstructured.ingest.error import DestinationConnectionError, WriteError
 from unstructured.ingest.interfaces import (
+    AccessConfig,
     BaseConnectorConfig,
     BaseDestinationConnector,
     BaseIngestDoc,
@@ -16,6 +16,7 @@ from unstructured.ingest.interfaces import (
     WriteConfig,
 )
 from unstructured.ingest.logger import logger
+from unstructured.ingest.utils.data_prep import chunk_generator
 from unstructured.staging.base import flatten_dict
 from unstructured.utils import requires_dependencies
 
@@ -24,10 +25,15 @@ if t.TYPE_CHECKING:
 
 
 @dataclass
+class PineconeAccessConfig(AccessConfig):
+    api_key: str = enhanced_field(sensitive=True)
+
+
+@dataclass
 class SimplePineconeConfig(ConfigSessionHandleMixin, BaseConnectorConfig):
     index_name: str
     environment: str
-    api_key: str = enhanced_field(sensitive=True)
+    access_config: PineconeAccessConfig
 
 
 @dataclass
@@ -56,7 +62,8 @@ class PineconeDestinationConnector(IngestDocSessionHandleMixin, BaseDestinationC
         import pinecone
 
         pinecone.init(
-            api_key=self.connector_config.api_key, environment=self.connector_config.environment
+            api_key=self.connector_config.access_config.api_key,
+            environment=self.connector_config.environment,
         )
         index = pinecone.Index(self.connector_config.index_name)
         logger.debug(
@@ -80,15 +87,6 @@ class PineconeDestinationConnector(IngestDocSessionHandleMixin, BaseDestinationC
             raise WriteError(f"http error: {api_error}") from api_error
         logger.debug(f"results: {response}")
 
-    @staticmethod
-    def chunks(iterable, batch_size=100):
-        """A helper function to break an iterable into chunks of size batch_size."""
-        it = iter(iterable)
-        chunk = tuple(itertools.islice(it, batch_size))
-        while chunk:
-            yield chunk
-            chunk = tuple(itertools.islice(it, batch_size))
-
     def write_dict(self, *args, dict_list: t.List[t.Dict[str, t.Any]], **kwargs) -> None:
         logger.info(
             f"Upserting {len(dict_list)} elements to destination "
@@ -99,14 +97,14 @@ class PineconeDestinationConnector(IngestDocSessionHandleMixin, BaseDestinationC
 
         logger.info(f"using {self.write_config.num_processes} processes to upload")
         if self.write_config.num_processes == 1:
-            for chunk in self.chunks(dict_list, pinecone_batch_size):
+            for chunk in chunk_generator(dict_list, pinecone_batch_size):
                 self.upsert_batch(chunk)  # noqa: E203
 
         else:
             with mp.Pool(
                 processes=self.write_config.num_processes,
             ) as pool:
-                pool.map(self.upsert_batch, list(self.chunks(dict_list, pinecone_batch_size)))
+                pool.map(self.upsert_batch, list(chunk_generator(dict_list, pinecone_batch_size)))
 
     def write(self, docs: t.List[BaseIngestDoc]) -> None:
         dict_list: t.List[t.Dict[str, t.Any]] = []
