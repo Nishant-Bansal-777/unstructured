@@ -52,8 +52,8 @@ class BaseConfig(EnhancedDataClassJsonMixin, ABC):
 
 @dataclass
 class AccessConfig(BaseConfig):
-    # Meant to designate holding any sensitive information associated with other configs
-    pass
+    """Meant to designate holding any sensitive information associated with other configs
+    and also for access specific configs."""
 
 
 @dataclass
@@ -299,6 +299,8 @@ class IngestDocJsonMixin(EnhancedDataClassJsonMixin):
 
     def to_dict(self, **kwargs) -> t.Dict[str, Json]:
         as_dict = _asdict(self, **kwargs)
+        if "_session_handle" in as_dict:
+            as_dict.pop("_session_handle", None)
         self.add_props(as_dict=as_dict, props=self.properties_to_serialize)
         if getattr(self, "_source_metadata") is not None:
             self.add_props(as_dict=as_dict, props=self.metadata_properties)
